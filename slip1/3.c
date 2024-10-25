@@ -4,77 +4,124 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define P 5 // Number of processes
-#define R 4 // Number of resources
+#define P 5  // Number of processes
+#define R 4  // Number of resource types
 
 void calculateNeed(int need[P][R], int max[P][R], int alloc[P][R]) {
-    for (int i = 0; i < P; i++)
-        for (int j = 0; j < R; j++)
+    for (int i = 0; i < P; i++) {
+        for (int j = 0; j < R; j++) {
             need[i][j] = max[i][j] - alloc[i][j];
+        }
+    }
 }
 
 bool isSafe(int processes[], int avail[], int max[][R], int alloc[][R]) {
     int need[P][R];
     calculateNeed(need, max, alloc);
-
+    
     bool finish[P] = {0};
     int safeSeq[P];
     int work[R];
-
-    for (int i = 0; i < R; i++)
+    for (int i = 0; i < R; i++) {
         work[i] = avail[i];
-
+    }
+    
     int count = 0;
     while (count < P) {
         bool found = false;
         for (int p = 0; p < P; p++) {
-            if (!finish[p]) {
+            if (finish[p] == 0) {
                 int j;
-                for (j = 0; j < R; j++)
-                    if (need[p][j] > work[j])
+                for (j = 0; j < R; j++) {
+                    if (need[p][j] > work[j]) {
                         break;
-
+                    }
+                }
                 if (j == R) {
-                    for (int k = 0; k < R; k++)
+                    for (int k = 0; k < R; k++) {
                         work[k] += alloc[p][k];
+                    }
                     safeSeq[count++] = p;
                     finish[p] = 1;
                     found = true;
                 }
             }
         }
-        if (!found) {
+        if (found == false) {
             printf("System is not in a safe state.\n");
             return false;
         }
     }
-
     printf("System is in a safe state.\nSafe sequence is: ");
-    for (int i = 0; i < P; i++)
+    for (int i = 0; i < P; i++) {
         printf("%d ", safeSeq[i]);
+    }
     printf("\n");
     return true;
 }
 
+bool requestGrant(int process, int request[], int avail[], int max[][R], int alloc[][R]) {
+    int need[P][R];
+    calculateNeed(need, max, alloc);
+
+    for (int i = 0; i < R; i++) {
+        if (request[i] > need[process][i]) {
+            printf("Error: Request exceeds maximum claim.\n");
+            return false;
+        }
+    }
+
+    for (int i = 0; i < R; i++) {
+        if (request[i] > avail[i]) {
+            printf("Resources not available. Process must wait.\n");
+            return false;
+        }
+    }
+
+    for (int i = 0; i < R; i++) {
+        avail[i] -= request[i];
+        alloc[process][i] += request[i];
+        need[process][i] -= request[i];
+    }
+
+    if (isSafe((int[]){0, 1, 2, 3, 4}, avail, max, alloc)) {
+        printf("Request granted.\n");
+        return true;
+    } else {
+        for (int i = 0; i < R; i++) {
+            avail[i] += request[i];
+            alloc[process][i] -= request[i];
+            need[process][i] += request[i];
+        }
+        printf("Request cannot be granted as it puts the system in an unsafe state.\n");
+        return false;
+    }
+}
+
 int main() {
     int processes[] = {0, 1, 2, 3, 4};
-
-    int avail[] = {1, 5, 2, 0}; // Available resources A, B, C, D
+    int avail[] = {1, 5, 2, 0};
 
     int max[P][R] = {
         {0, 0, 1, 2},
         {1, 7, 5, 0},
         {2, 3, 5, 6},
         {0, 6, 3, 2},
-        {0, 6, 5, 6}};
+        {0, 6, 5, 6}
+    };
 
     int alloc[P][R] = {
         {0, 0, 1, 2},
         {1, 0, 0, 0},
         {1, 3, 5, 4},
         {0, 6, 3, 2},
-        {0, 0, 1, 4}};
+        {0, 0, 1, 4}
+    };
 
     isSafe(processes, avail, max, alloc);
+
+    int request[] = {0, 4, 2, 0};
+    requestGrant(1, request, avail, max, alloc);
+
     return 0;
 }
